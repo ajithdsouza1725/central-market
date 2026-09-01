@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -15,43 +15,13 @@ import {
   X,
 } from "lucide-react";
 import AnimatedSection from "@/components/AnimatedSection";
+import { allShops as shopData, floorOptions as floors, sectionOptions } from "@/data/shops";
 
-const allShops = [
-  { id: "LG-01", floor: "Lower Ground", size: 435, category: "Commercial", status: "available" },
-  { id: "LG-07", floor: "Lower Ground", size: 355, category: "Commercial", status: "available" },
-  { id: "LG-11", floor: "Lower Ground", size: 660, category: "Commercial", status: "booked" },
-  { id: "LG II-1A", floor: "Lower Ground L2", size: 345, category: "Maya Bazaar", status: "available" },
-  { id: "LG II-6C", floor: "Lower Ground L2", size: 355, category: "Maya Bazaar", status: "available" },
-  { id: "LG II-11A", floor: "Lower Ground L2", size: 1330, category: "Maya Bazaar", status: "booked" },
-  { id: "GF-01", floor: "Ground Floor", size: 435, category: "Individual Shop", status: "available" },
-  { id: "GF-03", floor: "Ground Floor", size: 1060, category: "Individual Shop", status: "available" },
-  { id: "GF-04", floor: "Ground Floor", size: 1265, category: "Individual Shop", status: "booked" },
-  { id: "GF-22", floor: "Ground Floor", size: 1885, category: "Individual Shop", status: "available" },
-  { id: "GF-27", floor: "Ground Floor", size: 2025, category: "Individual Shop", status: "available" },
-  { id: "GF-44", floor: "Ground Floor", size: 700, category: "City Bazaar", status: "available" },
-  { id: "GF-43", floor: "Ground Floor", size: 765, category: "City Bazaar", status: "booked" },
-  { id: "GF-52A", floor: "Ground Floor", size: 625, category: "Super Bazaar", status: "available" },
-  { id: "GF-53", floor: "Ground Floor", size: 640, category: "Super Bazaar", status: "available" },
-  { id: "GF-73A", floor: "Ground Floor", size: 1115, category: "Individual Shop", status: "available" },
-  { id: "UG-01", floor: "Upper Ground", size: 435, category: "Retail", status: "available" },
-  { id: "UG-04", floor: "Upper Ground", size: 1285, category: "Retail", status: "booked" },
-  { id: "UG-21", floor: "Upper Ground", size: 1205, category: "Retail", status: "available" },
-  { id: "UG-28", floor: "Upper Ground", size: 2410, category: "Retail", status: "available" },
-  { id: "UG-33A", floor: "Upper Ground", size: 2515, category: "Retail", status: "available" },
-  { id: "FF-01", floor: "1st Floor", size: 450, category: "Commercial", status: "available" },
-  { id: "FF-15", floor: "1st Floor", size: 380, category: "Commercial", status: "available" },
-  { id: "SF-01", floor: "2nd Floor", size: 420, category: "Commercial", status: "available" },
-  { id: "SF-12", floor: "2nd Floor", size: 520, category: "Commercial", status: "booked" },
-  { id: "TF-01", floor: "3rd Floor", size: 350, category: "Restaurant", status: "available" },
-  { id: "TF-22", floor: "3rd Floor", size: 600, category: "Restaurant", status: "available" },
-  { id: "TF-32", floor: "3rd Floor", size: 800, category: "Restaurant", status: "booked" },
-  { id: "FC-1", floor: "3rd Floor", size: 150, category: "Food Stall", status: "available" },
-  { id: "FC-5", floor: "3rd Floor", size: 160, category: "Food Stall", status: "available" },
-];
-
-const floorOptions = ["All Floors", "Lower Ground", "Lower Ground L2", "Ground Floor", "Upper Ground", "1st Floor", "2nd Floor", "3rd Floor"];
-const categoryOptions = ["All Categories", "Individual Shop", "Super Bazaar", "City Bazaar", "Maya Bazaar", "Retail", "Commercial", "Restaurant", "Food Stall"];
+const floorOptions = ["All Floors", ...floors.slice(1)];
+const categoryOptions = ["All Categories", ...sectionOptions.slice(1)];
 const statusOptions = ["All", "Available", "Booked"];
+
+const ITEMS_PER_PAGE = 30;
 
 export default function BookingPage() {
   const [search, setSearch] = useState("");
@@ -61,15 +31,27 @@ export default function BookingPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedShop, setSelectedShop] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [page, setPage] = useState(1);
 
-  const filtered = allShops.filter((shop) => {
-    if (search && !shop.id.toLowerCase().includes(search.toLowerCase())) return false;
-    if (floor !== "All Floors" && shop.floor !== floor) return false;
-    if (category !== "All Categories" && shop.category !== category) return false;
-    if (status === "Available" && shop.status !== "available") return false;
-    if (status === "Booked" && shop.status !== "booked") return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    return shopData.filter((shop) => {
+      if (search && !shop.id.toLowerCase().includes(search.toLowerCase())) return false;
+      if (floor !== "All Floors" && shop.floor !== floor) return false;
+      if (category !== "All Categories" && shop.section !== category) return false;
+      if (status === "Available" && shop.status !== "available") return false;
+      if (status === "Booked" && shop.status !== "booked") return false;
+      return true;
+    });
+  }, [search, floor, category, status]);
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+  const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+  // Reset page when filters change
+  const updateFilter = (setter: (v: string) => void, value: string) => {
+    setter(value);
+    setPage(1);
+  };
 
   return (
     <>
@@ -103,27 +85,27 @@ export default function BookingPage() {
                 type="text"
                 placeholder="Search by shop ID (e.g. GF-27)..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => updateFilter(setSearch, e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal/50 focus:ring-2 focus:ring-teal/10 transition-all"
               />
             </div>
             <div className="relative">
               <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <select value={floor} onChange={(e) => setFloor(e.target.value)} className="appearance-none pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal/50 cursor-pointer">
+              <select value={floor} onChange={(e) => updateFilter(setFloor, e.target.value)} className="appearance-none pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal/50 cursor-pointer">
                 {floorOptions.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             </div>
             <div className="relative">
               <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className="appearance-none pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal/50 cursor-pointer">
+              <select value={category} onChange={(e) => updateFilter(setCategory, e.target.value)} className="appearance-none pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-teal/50 cursor-pointer">
                 {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             </div>
             <div className="flex gap-1 p-1 bg-gray-50 border border-gray-200 rounded-xl">
               {statusOptions.map((s) => (
-                <button key={s} onClick={() => setStatus(s)} className={`px-4 py-2 text-sm rounded-lg transition-colors font-medium ${status === s ? "bg-teal text-white shadow-sm" : "text-gray-500 hover:text-charcoal"}`}>
+                <button key={s} onClick={() => updateFilter(setStatus, s)} className={`px-4 py-2 text-sm rounded-lg transition-colors font-medium ${status === s ? "bg-teal text-white shadow-sm" : "text-gray-500 hover:text-charcoal"}`}>
                   {s}
                 </button>
               ))}
@@ -137,10 +119,11 @@ export default function BookingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <p className="text-sm text-gray-500 mb-6">
             Showing <span className="text-charcoal font-semibold">{filtered.length}</span> spaces
+            {totalPages > 1 && <span> · Page {page} of {totalPages}</span>}
           </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <AnimatePresence mode="popLayout">
-              {filtered.map((shop) => (
+              {paginated.map((shop) => (
                 <motion.div
                   key={shop.id}
                   layout
@@ -164,8 +147,8 @@ export default function BookingPage() {
                   </div>
                   <div className="space-y-2.5 mb-6">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400 flex items-center gap-1.5"><Tag className="h-3 w-3" /> Category</span>
-                      <span className="text-sm font-medium text-charcoal">{shop.category}</span>
+                      <span className="text-sm text-gray-400 flex items-center gap-1.5"><Tag className="h-3 w-3" /> Section</span>
+                      <span className="text-sm font-medium text-charcoal">{shop.section}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-400 flex items-center gap-1.5"><Maximize2 className="h-3 w-3" /> Size</span>
@@ -185,10 +168,32 @@ export default function BookingPage() {
               ))}
             </AnimatePresence>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-8">
+              <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium disabled:opacity-30 hover:border-teal/30 transition-colors">
+                Previous
+              </button>
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                let p: number;
+                if (totalPages <= 7) p = i + 1;
+                else if (page <= 4) p = i + 1;
+                else if (page >= totalPages - 3) p = totalPages - 6 + i;
+                else p = page - 3 + i;
+                return (
+                  <button key={p} onClick={() => setPage(p)} className={`h-9 w-9 rounded-lg text-sm font-medium transition-colors ${page === p ? "bg-teal text-white" : "border border-gray-200 hover:border-teal/30"}`}>
+                    {p}
+                  </button>
+                );
+              })}
+              <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium disabled:opacity-30 hover:border-teal/30 transition-colors">
+                Next
+              </button>
+            </div>
+          )}
           {filtered.length === 0 && (
             <div className="text-center py-20">
               <p className="text-gray-500 text-lg">No shops match your filters.</p>
-              <button onClick={() => { setSearch(""); setFloor("All Floors"); setCategory("All Categories"); setStatus("All"); }} className="mt-4 text-teal hover:text-teal-dark transition-colors text-sm font-medium">
+              <button onClick={() => { setSearch(""); setFloor("All Floors"); setCategory("All Categories"); setStatus("All"); setPage(1); }} className="mt-4 text-teal hover:text-teal-dark transition-colors text-sm font-medium">
                 Clear all filters
               </button>
             </div>
