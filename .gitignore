@@ -17,6 +17,10 @@
 /.next/
 # /out/ — committed for Hostinger static deploy
 
+# Next.js temp config files
+*.next.config.ts
+*.next.config.js
+
 # production
 /build
 
