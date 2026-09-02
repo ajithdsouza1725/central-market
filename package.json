@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "echo 'Static site pre-built — serving from out/ folder'",
-    "build:local": "next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
